@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#075e54" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>DuoVault</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100dvh; overflow: hidden; background: #0b141a; color: #e9edef; font-family: system-ui, sans-serif; }
+    .app-shell { height: 100dvh; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; background: #0b141a; overflow: hidden; }
+    .protected-media { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  </style>
+</head>
+<body>
+  <div class="app-shell border-x border-slate-800">
+    <!-- LOGIN -->
+    <div id="loginScreen" class="flex-1 overflow-y-auto p-4 flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center font-bold">🔒</div>
+            <div><h1 class="text-base font-bold">DuoVault</h1><p class="text-[11px] text-emerald-400">E2EE 2-Person Private Space</p></div>
+          </div>
+          <span id="sdkPill" class="text-[11px] px-2.5 py-1 rounded-full bg-amber-950 text-amber-300 border border-amber-700">Loading...</span>
+        </div>
+
+        <div class="space-y-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+          <input id="userNameInput" type="text" placeholder="Your Display Name" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white" />
+          <input id="roomIdInput" type="text" placeholder="Shared Room ID (Both use same)" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white" />
+          <input id="passphraseInput" type="password" placeholder="Secret Encryption Passphrase" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white" />
+          <button id="joinBtn" type="button" class="w-full py-3 rounded-xl bg-emerald-600 font-bold text-sm text-white">Unlock Private Room (Max 2)</button>
+          <div id="diagBox" class="p-2 rounded-xl bg-black/70 border border-slate-800 text-[11px] font-mono text-slate-300 max-h-28 overflow-y-auto"></div>
+        </div>
+      </div>
+      <div class="text-center text-[11px] text-slate-500 py-2">AES-256 E2EE • RAM Photo View • P2P Call</div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatScreen" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+      <header class="bg-[#1f2c34] px-3 py-2.5 flex items-center justify-between border-b border-slate-800 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <button id="leaveBtn" type="button" class="p-1.5 rounded-full bg-slate-800 text-xs">◀</button>
+          <div class="min-w-0">
+            <h2 id="roomTitleDisplay" class="text-sm font-bold truncate">Room</h2>
+            <p id="presenceStatus" class="text-[11px] text-slate-400 truncate">Waiting...</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button id="voiceCallBtn" type="button" class="p-2 rounded-full bg-slate-800 text-xs">📞</button>
+          <button id="videoCallBtn" type="button" class="p-2 rounded-full bg-slate-800 text-xs">📹</button>
+          <button id="clearChatBtn" type="button" class="p-2 rounded-full bg-slate-800 text-xs">🗑️</button>
+        </div>
+      </header>
+
+      <main id="messagesContainer" class="flex-1 overflow-y-auto p-3 space-y-2"></main>
+
+      <div id="photoQueueBar" class="hidden bg-[#182229] px-3 py-2 border-t border-slate-800 flex items-center justify-between text-xs shrink-0">
+        <span id="photoSizeLabel" class="text-emerald-400">📷 Photo ready</span>
+        <div class="flex items-center gap-2">
+          <button id="viewOnceToggleBtn" type="button" class="px-2 py-1 rounded-full border border-slate-600 text-[11px]">1x View Once: OFF</button>
+          <button id="cancelPhotoBtn" type="button" class="text-rose-400 font-bold">✕</button>
+        </div>
+      </div>
+
+      <footer class="bg-[#1f2c34] px-2.5 py-2 flex items-end gap-2 border-t border-slate-800 shrink-0">
+        <input type="file" id="photoFileInput" accept="image/*" class="hidden" />
+        <button id="attachPhotoBtn" type="button" class="p-2.5 rounded-full bg-slate-800 shrink-0">🖼️</button>
+        <textarea id="messageInput" rows="1" placeholder="Encrypted message..." class="flex-1 bg-[#2a3942] text-white text-sm rounded-2xl px-3.5 py-2.5 max-h-24 resize-none focus:outline-none"></textarea>
+        <button id="sendBtn" type="button" class="p-2.5 rounded-full bg-emerald-600 text-white shrink-0 font-bold">➤</button>
+      </footer>
+    </div>
+
+    <!-- PHOTO MODAL -->
+    <div id="photoViewerModal" oncontextmenu="return false;" class="hidden fixed inset-0 z-50 bg-black/95 flex flex-col justify-between">
+      <div class="px-4 py-3 flex items-center justify-between">
+        <span id="viewerBadge" class="text-xs px-2 py-0.5 rounded bg-emerald-900 text-emerald-300">RAM Preview</span>
+        <div class="flex items-center gap-2">
+          <button id="manualSaveBtn" type="button" class="px-3 py-1.5 rounded-full bg-emerald-600 text-xs font-semibold">⬇ Save</button>
+          <button id="closeViewerBtn" type="button" class="p-2 rounded-full bg-slate-800 text-xs font-bold">✕</button>
+        </div>
+      </div>
+      <div class="flex-1 flex items-center justify-center p-3 overflow-hidden">
+        <canvas id="securePhotoCanvas" class="max-w-full max-h-full rounded-lg protected-media"></canvas>
+      </div>
+      <div class="p-2 text-center text-[11px] text-slate-400">In-App RAM Preview Only</div>
+    </div>
+
+    <!-- CALL OVERLAY -->
+    <div id="callOverlay" class="hidden fixed inset-0 z-40 bg-slate-950 flex flex-col justify-between">
+      <div class="p-4 text-center">
+        <h3 id="callPartnerName" class="text-lg font-bold">Partner</h3>
+        <p id="callStatusText" class="text-xs text-slate-400">Connecting...</p>
+      </div>
+      <div class="relative flex-1 mx-3 rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
+        <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover"></video>
+        <div id="audioOnlyAvatar" class="hidden text-4xl">🎙️</div>
+        <video id="localVideo" autoplay playsinline muted class="w-24 h-36 object-cover rounded-xl border border-slate-700 absolute bottom-3 right-3 bg-black"></video>
+      </div>
+      <div class="p-5 flex items-center justify-center gap-6">
+        <button id="acceptCallBtn" type="button" class="hidden w-14 h-14 rounded-full bg-emerald-600 text-xl">📞</button>
+        <button id="muteMicBtn" type="button" class="w-12 h-12 rounded-full bg-slate-800 border border-slate-700">🎙️</button>
+        <button id="endCallBtn" type="button" class="w-14 h-14 rounded-full bg-rose-600 text-xl">📵</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function logDiag(msg, err) {
+      const box = document.getElementById("diagBox");
+      if (!box) return;
+      const d = document.createElement("div");
+      d.className = err ? "text-rose-400" : "text-emerald-400";
+      d.textContent = msg;
+      box.appendChild(d);
+      box.scrollTop = box.scrollHeight;
+    }
+    window.onerror = (m) => logDiag("Error: " + m, true);
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDocs, addDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAh2OUmtTiHAHdhtrnsYtZpHXIuUHGHuMA",
+      authDomain: "myapp-78b18.firebaseapp.com",
+      projectId: "myapp-78b18",
+      storageBucket: "myapp-78b18.firebasestorage.app",
+      messagingSenderId: "413984551014",
+      appId: "1:413984551014:web:51f2f94b55e8fc71f93da7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    document.getElementById("sdkPill").textContent = "● Ready";
+    document.getElementById("sdkPill").className = "text-[11px] px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700";
+    logDiag("Firebase Ready.");
+
+    let uid = null, uName = "", roomId = "", cryptoKey = null, useFallback = false;
+    let unsubMsg = null, unsubMem = null, unsubCall = null;
+    let queuedPhoto = null, viewOnce = false, viewerUrl = null, viewerMsgId = null, viewerOnce = false;
+    let pc = null, localStream = null, muted = false, incomingOffer = null;
+    const rtcCfg = { iceServers: [{ urls: ["stun:stun1.l.google.com:19302"] }] };
+
+    async function initCrypto(pass, room) {
+      if (!window.crypto || !window.crypto.subtle) { useFallback = true; return; }
+      const enc = new TextEncoder();
+      const mat = await crypto.subtle.importKey("raw", enc.encode(pass), { name: "PBKDF2" }, false, ["deriveKey"]);
+      cryptoKey = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: enc.encode("DV_" + room), iterations: 50000, hash: "SHA-256" }, mat, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    }
+
+    async function encText(txt) {
+      if (useFallback || !cryptoKey) return { iv: "fb", data: btoa(encodeURIComponent(txt)) };
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const buf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, cryptoKey, new TextEncoder().encode(txt));
+      return { iv: btoa(String.fromCharCode(...iv)), data: btoa(String.fromCharCode(...new Uint8Array(buf))) };
+    }
+
+    async function decText(ivB64, dataB64) {
+      try {
+        if (ivB64 === "fb") return decodeURIComponent(atob(dataB64));
+        const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
+        const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+        const dec = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, cryptoKey, data);
+        return new TextDecoder().decode(dec);
+      } catch (e) { return "⚠️ [Wrong Passphrase]"; }
+    }
+
+    document.getElementById("joinBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("joinBtn");
+      uName = document.getElementById("userNameInput").value.trim();
+      roomId = document.getElementById("roomIdInput").value.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "");
+      const pass = document.getElementById("passphraseInput").value;
+      if (!uName || !roomId || !pass) return logDiag("Fill all 3 fields.", true);
+
+      btn.disabled = true; btn.textContent = "Unlocking...";
+      try {
+        const cred = await signInAnonymously(auth);
+        uid = cred.user.uid;
+        const memRef = collection(db, "rooms", roomId, "members");
+        const snap = await getDocs(memRef);
+        const ids = snap.docs.map(d => d.id);
+        if (!ids.includes(uid) && ids.length >= 2) throw new Error("Room FULL (Max 2 users).");
+        await setDoc(doc(db, "rooms", roomId, "members", uid), { name: uName, joinedAt: serverTimestamp() });
+        await initCrypto(pass, roomId);
+
+        localStorage.setItem("dv_name", uName);
+        localStorage.setItem("dv_room", roomId);
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("chatScreen").classList.remove("hidden");
+        document.getElementById("roomTitleDisplay").textContent = roomId;
+
+        listenMembers(); listenMessages(); listenCalls();
+      } catch (e) {
+        logDiag(e.message, true);
+      } finally {
+        btn.disabled = false; btn.textContent = "Unlock Private Room (Max 2)";
+      }
+    });
+
+    document.getElementById("leaveBtn").addEventListener("click", async () => {
+      if (unsubMsg) unsubMsg(); if (unsubMem) unsubMem(); if (unsubCall) unsubCall();
+      if (roomId && uid) try { await deleteDoc(doc(db, "rooms", roomId, "members", uid)); } catch (e) {}
+      document.getElementById("chatScreen").classList.add("hidden");
+      document.getElementById("loginScreen").classList.remove("hidden");
+    });
+
+    function listenMembers() {
+      unsubMem = onSnapshot(collection(db, "rooms", roomId, "members"), (snap) => {
+        const others = snap.docs.filter(d => d.id !== uid).map(d => d.data().name);
+        document.getElementById("presenceStatus").textContent = others.length ? `● ${others[0]} online` : "Waiting for partner (1/2)...";
+      });
+    }
+
+    document.getElementById("attachPhotoBtn").addEventListener("click", () => document.getElementById("photoFileInput").click());
+    document.getElementById("photoFileInput").addEventListener("change", (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const c = document.createElement("canvas");
+          let w = img.width, h = img.height, max = 850;
+          if (w > max || h > max) { if (w > h) { h = Math.round(h * max / w); w = max; } else { w = Math.round(w * max / h); h = max; } }
+          c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h);
+          queuedPhoto = c.toDataURL("image/jpeg", 0.7);
+          document.getElementById("photoQueueBar").classList.remove("hidden");
+        };
+        img.src = ev.target.result;
+      };
+      r.readAsDataURL(f); e.target.value = "";
+    });
+
+    document.getElementById("viewOnceToggleBtn").addEventListener("click", () => {
+      viewOnce = !viewOnce;
+      document.getElementById("viewOnceToggleBtn").textContent = viewOnce ? "1x View Once: ON" : "1x View Once: OFF";
+    });
+    document.getElementById("cancelPhotoBtn").addEventListener("click", () => {
+      queuedPhoto = null; viewOnce = false; document.getElementById("photoQueueBar").classList.add("hidden");
+    });
+
+    async function sendMsg() {
+      const inp = document.getElementById("messageInput");
+      const text = inp.value.trim();
+      if (!text && !queuedPhoto) return;
+      inp.value = "";
+      const payload = { type: queuedPhoto ? "photo" : "text", text, image: queuedPhoto, viewOnce: queuedPhoto ? viewOnce : false };
+      queuedPhoto = null; viewOnce = false; document.getElementById("photoQueueBar").classList.add("hidden");
+      const enc = await encText(JSON.stringify(payload));
+      await addDoc(collection(db, "rooms", roomId, "messages"), { senderUid: uid, senderName: uName, iv: enc.iv, data: enc.data, openedBy: [], createdAt: serverTimestamp() });
+    }
+    document.getElementById("sendBtn").addEventListener("click", sendMsg);
+
+    function listenMessages() {
+      const q = query(collection(db, "rooms", roomId, "messages"), orderBy("createdAt", "asc"));
+      unsubMsg = onSnapshot(q, async (snap) => {
+        const box = document.getElementById("messagesContainer");
+        box.innerHTML = "";
+        for (const d of snap.docs) {
+          const m = d.data(), isMe = m.senderUid === uid;
+          const raw = await decText(m.iv, m.data);
+          let p = { type: "text", text: raw };
+          if (raw.startsWith("{")) try { p = JSON.parse(raw); } catch (e) {}
+
+          const wrap = document.createElement("div");
+          wrap.className = `flex flex-col ${isMe ? "items-end" : "items-start"}`;
+          const bub = document.createElement("div");
+          bub.className = `max-w-[82%] rounded-2xl px-3.5 py-2 text-sm ${isMe ? "bg-[#005c4b]" : "bg-[#202c33]"}`;
+
+          if (p.type === "photo" && p.image) {
+            const opened = (m.openedBy || []).includes(uid);
+            if (p.viewOnce && opened && !isMe) {
+              bub.innerHTML += `<div class="text-xs italic text-slate-400">💣 View Once wiped</div>`;
+            } else {
+              const b = document.createElement("button");
+              b.className = "my-1 px-3 py-1.5 rounded-xl bg-black/30 text-xs font-semibold text-emerald-300";
+              b.textContent = p.viewOnce ? "💣 Tap View Once Photo" : "🖼️ Tap to Preview Photo";
+              b.onclick = () => openPhoto(d.id, p.image, p.viewOnce, isMe);
+              bub.appendChild(b);
+            }
+          }
+          if (p.text) {
+            const t = document.createElement("div"); t.textContent = p.text; bub.appendChild(t);
+          }
+          wrap.appendChild(bub); box.appendChild(wrap);
+        }
+        box.scrollTop = box.scrollHeight;
+      });
+    }
+
+    async function openPhoto(id, url, once, isMe) {
+      viewerUrl = url; viewerMsgId = id; viewerOnce = once;
+      document.getElementById("manualSaveBtn").classList.toggle("hidden", once);
+      const c = document.getElementById("securePhotoCanvas");
+      const img = new Image();
+      img.onload = () => { c.width = img.width; c.height = img.height; c.getContext("2d").drawImage(img, 0, 0); document.getElementById("photoViewerModal").classList.remove("hidden"); };
+      img.src = url;
+      if (once && !isMe) await updateDoc(doc(db, "rooms", roomId, "messages", id), { openedBy: [uid] });
+    }
+
+    document.getElementById("manualSaveBtn").addEventListener("click", () => {
+      if (!viewerUrl) return;
+      const a = document.createElement("a"); a.href = viewerUrl; a.download = `DuoVault_${Date.now()}.jpg`; a.click();
+    });
+
+    document.getElementById("closeViewerBtn").addEventListener("click", async () => {
+      const c = document.getElementById("securePhotoCanvas"); c.getContext("2d").clearRect(0, 0, c.width, c.height);
+      document.getElementById("photoViewerModal").classList.add("hidden");
+      if (viewerOnce && viewerMsgId) try { await deleteDoc(doc(db, "rooms", roomId, "messages", viewerMsgId)); } catch (e) {}
+      viewerUrl = null; viewerMsgId = null;
+    });
+
+    document.getElementById("clearChatBtn").addEventListener("click", async () => {
+      if (!confirm("Clear all messages?")) return;
+      const snap = await getDocs(collection(db, "rooms", roomId, "messages"));
+      for (const d of snap.docs) await deleteDoc(d.ref);
+    });
+
+    async function startCall(video) {
+      try {
+        document.getElementById("callOverlay").classList.remove("hidden");
+        document.getElementById("acceptCallBtn").classList.add("hidden");
+        document.getElementById("callStatusText").textContent = "Calling...";
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+        document.getElementById("localVideo").srcObject = localStream;
+        document.getElementById("localVideo").classList.toggle("hidden", !video);
+        document.getElementById("audioOnlyAvatar").classList.toggle("hidden", video);
+
+        pc = new RTCPeerConnection(rtcCfg);
+        localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+        pc.ontrack = (e) => { document.getElementById("remoteVideo").srcObject = e.streams[0]; document.getElementById("callStatusText").textContent = "Connected"; };
+
+        const callRef = doc(db, "rooms", roomId, "calls", "activeCall");
+        const oCands = collection(callRef, "offerCandidates"), aCands = collection(callRef, "answerCandidates");
+        pc.onicecandidate = (e) => { if (e.candidate) addDoc(oCands, e.candidate.toJSON()); };
+        const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+        await setDoc(callRef, { callerUid: uid, callerName: uName, withVideo: video, offer: { sdp: offer.sdp, type: offer.type }, status: "ringing" });
+        onSnapshot(aCands, (s) => s.docChanges().forEach(c => { if (c.type === "added" && pc) pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); }));
+      } catch (e) { alert(e.message); endCall(true); }
+    }
+    document.getElementById("voiceCallBtn").addEventListener("click", () => startCall(false));
+    document.getElementById("videoCallBtn").addEventListener("click", () => startCall(true));
+
+    function listenCalls() {
+      unsubCall = onSnapshot(doc(db, "rooms", roomId, "calls", "activeCall"), async (snap) => {
+        if (!snap.exists()) { if (!document.getElementById("callOverlay").classList.contains("hidden")) endCall(false); return; }
+        const data = snap.data();
+        if (data.status === "ringing" && data.callerUid !== uid && !pc) {
+          incomingOffer = data;
+          document.getElementById("callOverlay").classList.remove("hidden");
+          document.getElementById("acceptCallBtn").classList.remove("hidden");
+          document.getElementById("callPartnerName").textContent = data.callerName;
+          document.getElementById("callStatusText").textContent = "Incoming Call...";
+        }
+        if (data.answer && pc && !pc.currentRemoteDescription) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          document.getElementById("callStatusText").textContent = "Connected";
+        }
+      });
+    }
+
+    document.getElementById("acceptCallBtn").addEventListener("click", async () => {
+      if (!incomingOffer) return;
+      document.getElementById("acceptCallBtn").classList.add("hidden");
+      const video = incomingOffer.withVideo;
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+      document.getElementById("localVideo").srcObject = localStream;
+      document.getElementById("localVideo").classList.toggle("hidden", !video);
+      document.getElementById("audioOnlyAvatar").classList.toggle("hidden", video);
+
+      pc = new RTCPeerConnection(rtcCfg);
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      pc.ontrack = (e) => { document.getElementById("remoteVideo").srcObject = e.streams[0]; document.getElementById("callStatusText").textContent = "Connected"; };
+
+      const callRef = doc(db, "rooms", roomId, "calls", "activeCall");
+      const oCands = collection(callRef, "offerCandidates"), aCands = collection(callRef, "answerCandidates");
+      pc.onicecandidate = (e) => { if (e.candidate) addDoc(aCands, e.candidate.toJSON()); };
+      await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+      const ans = await pc.createAnswer(); await pc.setLocalDescription(ans);
+      await updateDoc(callRef, { answer: { type: ans.type, sdp: ans.sdp }, status: "connected" });
+      onSnapshot(oCands, (s) => s.docChanges().forEach(c => { if (c.type === "added" && pc) pc.addIceCandidate(new RTCIceCandidate(c.doc.data())); }));
+    });
+
+    document.getElementById("muteMicBtn").addEventListener("click", () => {
+      if (!localStream) return;
+      muted = !muted; localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+      document.getElementById("muteMicBtn").textContent = muted ? "🔇" : "🎙️";
+    });
+
+    async function endCall(del) {
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      if (pc) { pc.close(); pc = null; }
+      incomingOffer = null; document.getElementById("callOverlay").classList.add("hidden");
+      if (del && roomId) {
+        try {
+          const ref = doc(db, "rooms", roomId, "calls", "activeCall");
+          const o = await getDocs(collection(ref, "offerCandidates")); for (const d of o.docs) await deleteDoc(d.ref);
+          const a = await getDocs(collection(ref, "answerCandidates")); for (const d of a.docs) await deleteDoc(d.ref);
+          await deleteDoc(ref);
+        } catch (e) {}
+      }
+    }
+    document.getElementById("endCallBtn").addEventListener("click", () => endCall(true));
+
+    if (localStorage.getItem("dv_name")) document.getElementById("userNameInput").value = localStorage.getItem("dv_name");
+    if (localStorage.getItem("dv_room")) document.getElementById("roomIdInput").value = localStorage.getItem("dv_room");
+  </script>
+</body>
+</html>
