@@ -1,0 +1,126 @@
+!DOCTYPE html
+html lang=en
+head
+  meta charset=UTF-8 
+  meta name=viewport content=width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover 
+  meta name=theme-color content=#075e54 
+  meta name=apple-mobile-web-app-capable content=yes 
+  titleDuoVault — Private 2-Person Encrypted Chat & Calltitle
+  script src=httpscdn.tailwindcss.comscript
+  style
+     { box-sizing border-box; -webkit-tap-highlight-color transparent; }
+    html, body {
+      margin 0; padding 0; width 100%; height 100dvh; overflow hidden;
+      background-color #0b141a; color #e9edef;
+      font-family -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif;
+    }
+    .app-shell {
+      height 100dvh; max-width 520px; margin 0 auto;
+      display flex; flex-direction column; background-color #0b141a; overflow hidden;
+    }
+    .chat-bg {
+      background-color #0b141a;
+      background-image radial-gradient(rgba(255,255,255,0.035) 1px, transparent 0);
+      background-size 20px 20px;
+    }
+    .protected-media { user-select none; -webkit-user-select none; -webkit-touch-callout none; }
+    .safe-bottom { padding-bottom max(10px, env(safe-area-inset-bottom)); }
+    .safe-top { padding-top max(10px, env(safe-area-inset-top)); }
+  style
+head
+body
+  div id=app class=app-shell border-x border-slate-800
+
+    !-- ==================== 1. LOGIN SCREEN ==================== --
+    div id=loginScreen class=flex-1 overflow-y-auto p-4 flex flex-col justify-between safe-top safe-bottom
+      div
+        div class=flex items-center justify-between mb-4
+          div class=flex items-center gap-2.5
+            div class=w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center font-bold text-white shadow
+              🔒
+            div
+            div
+              h1 class=text-lg font-bold text-white leading-tightDuoVaulth1
+              p class=text-[11px] text-emerald-400E2EE 2-Person Private Spacep
+            div
+          div
+          span id=sdkStatusPill class=text-[11px] px-2.5 py-1 rounded-full bg-amber-950 text-amber-300 border border-amber-700
+            Loading SDK...
+          span
+        div
+
+        div class=space-y-3 bg-slate-90070 p-4 rounded-2xl border border-slate-800
+          div
+            label class=block text-xs text-slate-400 mb-1Your Display Namelabel
+            input id=userNameInput type=text placeholder=e.g. Rahul maxlength=20
+              class=w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focusoutline-none focusborder-emerald-500 
+          div
+
+          div
+            label class=block text-xs text-slate-400 mb-1Shared Room ID (Both use same)label
+            input id=roomIdInput type=text placeholder=e.g. secret-room-2026
+              class=w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focusoutline-none focusborder-emerald-500 
+          div
+
+          div
+            label class=block text-xs text-slate-400 mb-1Secret Encryption Passphraselabel
+            input id=passphraseInput type=password placeholder=Never sent to server
+              class=w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focusoutline-none focusborder-emerald-500 
+          div
+
+          button id=joinBtn type=button
+            class=w-full py-3 rounded-xl bg-emerald-600 hoverbg-emerald-500 activescale-[0.99] text-sm font-bold text-white shadow-lg transition
+            Unlock Private Room (Max 2)
+          button
+
+          !-- Live Diagnostic Log Box --
+          div id=diagBox class=p-2.5 rounded-xl bg-black70 border border-slate-800 text-[11px] font-mono text-slate-300 space-y-1 max-h-32 overflow-y-auto
+            div class=text-slate-400System Status Initializing...div
+          div
+        div
+      div
+
+      div class=mt-4 pt-2 border-t border-slate-800 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-400
+        div class=bg-slate-90050 p-2 rounded-xldiv class=text-emerald-400 font-boldAES-256divE2EE Lockdiv
+        div class=bg-slate-90050 p-2 rounded-xldiv class=text-emerald-400 font-boldRAM ViewdivNo Auto-Savediv
+        div class=bg-slate-90050 p-2 rounded-xldiv class=text-emerald-400 font-boldP2P CalldivAudioVideodiv
+      div
+    div
+
+    !-- ==================== 2. CHAT SCREEN ==================== --
+    div id=chatScreen class=hidden flex-1 flex flex-col h-full overflow-hidden
+      header class=bg-[#1f2c34] px-3 py-2.5 flex items-center justify-between border-b border-slate-800 safe-top shrink-0
+        div class=flex items-center gap-2.5 min-w-0
+          button id=leaveBtn type=button class=p-1.5 rounded-full hoverbg-slate-700 text-slate-300◀button
+          div id=partnerAvatar class=w-9 h-9 rounded-full bg-emerald-700 flex items-center justify-center font-bold text-sm text-white shrink-02Pdiv
+          div class=min-w-0
+            div class=flex items-center gap-1.5
+              h2 id=roomTitleDisplay class=text-sm font-bold text-white truncateRoomh2
+              span class=text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-monoE2EEspan
+            div
+            p id=presenceStatus class=text-[11px] text-slate-400 truncateWaiting for partner...p
+          div
+        div
+
+        div class=flex items-center gap-1.5 shrink-0
+          button id=voiceCallBtn type=button class=p-2 rounded-full bg-slate-800 hoverbg-emerald-700 text-emerald-400 hovertext-white text-xs📞button
+          button id=videoCallBtn type=button class=p-2 rounded-full bg-slate-800 hoverbg-emerald-700 text-emerald-400 hovertext-white text-xs📹button
+          button id=clearChatBtn type=button class=p-2 rounded-full bg-slate-800 hoverbg-rose-700 text-rose-400 hovertext-white text-xs🗑️button
+        div
+      header
+
+      main id=messagesContainer class=flex-1 overflow-y-auto p-3 space-y-2.5 chat-bgmain
+
+      div id=photoQueueBar class=hidden bg-[#182229] px-3 py-2 border-t border-slate-800 flex items-center justify-between text-xs shrink-0
+        span id=photoSizeLabel class=text-emerald-400 font-semibold📷 Photo readyspan
+        div class=flex items-center gap-2
+          button id=viewOnceToggleBtn type=button class=px-2.5 py-1 rounded-full border border-slate-600 text-slate-300 text-[11px]1x View Once OFFbutton
+          button id=cancelPhotoBtn type=button class=text-rose-400 px-1.5 font-bold✕button
+        div
+      div
+
+      footer class=bg-[#1f2c34] px-2.5 py-2 flex items-end gap-2 border-t border-slate-800 safe-bottom shrink-0
+        input type=file id=photoFileInput accept=image class=hidden 
+        button id=attachPhotoBtn type=button class=p-2.5 rounded-full bg-slate-800 text-slate-300 shrink-0🖼️button
+        textarea id=messageInput rows=1 placeholder=Encrypted message...
+          class=flex-1 bg-[#2a3942] text-white text-sm rounded-2xl px-3.5 py-2.5 max-h-28 resize-none
